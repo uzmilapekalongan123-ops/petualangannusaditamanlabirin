@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Petualangan Nusa di Taman Labirin - Bu Mila SDN 01 Karangasem</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  
+  <style>
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: 'Quicksand', sans-serif;
+    }
+    .font-fredoka {
+      font-family: 'Fredoka', cursive;
+    }
+    body {
+      background: linear-gradient(135deg, #a8ff78 0%, #78ffd6 50%, #a1c4fd 100%);
+      min-height: 100vh;
+    }
+    .game-card {
+      background: rgba(255, 255, 255, 0.93);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+      border: 4px solid #4ade80;
+    }
+    .btn-3d {
+      box-shadow: 0 6px 0px #059669;
+      transition: all 0.1s ease;
+    }
+    .btn-3d:active {
+      box-shadow: 0 2px 0px #059669;
+      transform: translateY(4px);
+    }
+    .btn-primary-3d {
+      box-shadow: 0 6px 0px #d97706;
+    }
+    .btn-primary-3d:active {
+      box-shadow: 0 2px 0px #d97706;
+      transform: translateY(4px);
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-8px) rotate(2deg); }
+    }
+    .animate-float {
+      animation: float 3s infinite ease-in-out;
+    }
+    @keyframes pulse-heart {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+    .pulse-icon {
+      display: inline-block;
+      animation: pulse-heart 1.5s infinite ease-in-out;
+    }
+    canvas {
+      touch-action: none;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-between p-2 sm:p-4 min-h-screen text-slate-800">
+
+  <!-- Header Banner -->
+  <header class="text-center my-2 max-w-2xl w-full">
+    <div class="bg-amber-300 text-amber-950 px-6 py-2.5 rounded-full border-4 border-amber-400 shadow-lg inline-block transform -rotate-1 hover:rotate-0 transition-transform">
+      <h1 class="font-fredoka text-2xl sm:text-4xl tracking-wider text-pink-600 drop-shadow-md">
+        🌳 PETUALANGAN NUSA DI TAMAN LABIRIN 🌳
+      </h1>
+    </div>
+    <div class="mt-2 flex justify-center items-center gap-2">
+      <span class="bg-white/80 text-emerald-800 text-xs sm:text-sm font-bold px-4 py-1 rounded-full shadow-sm border border-emerald-300">
+        Bantu Nusa kumpulkan bintang PAI & temukan jalan keluar! 🌟
+      </span>
+    </div>
+  </header>
+
+  <!-- Main Game Container -->
+  <main class="relative w-full max-w-2xl game-card rounded-3xl p-3 sm:p-5 flex flex-col items-center my-2">
+    
+    <!-- Top Scoreboard & Progress Bar -->
+    <div class="w-full bg-emerald-100/90 p-3 rounded-2xl border-2 border-emerald-300 mb-3 flex flex-col gap-2">
+      <div class="flex justify-between items-center text-xs sm:text-base font-bold text-emerald-900">
+        <div class="flex items-center gap-2">
+          <span>🏆 Skor: <span id="score-text" class="font-fredoka text-xl text-emerald-700">0</span></span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span>⭐ Bintang: <span id="stars-text" class="font-fredoka text-xl text-amber-600">0 / 10</span></span>
+        </div>
+        <button onclick="toggleAudio()" id="audio-btn" class="bg-emerald-200 hover:bg-emerald-300 text-emerald-800 text-xs px-3 py-1 rounded-full border border-emerald-400 font-bold">
+          🔊 Suara: ON
+        </button>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="w-full bg-emerald-200 h-3.5 rounded-full overflow-hidden border border-emerald-400">
+        <div id="progress-bar" class="bg-gradient-to-r from-amber-400 to-emerald-500 h-full w-0 transition-all duration-500 rounded-full"></div>
+      </div>
+    </div>
+
+    <!-- Canvas Wrapper for Labirin Game -->
+    <div class="relative w-full aspect-square sm:aspect-[4/3] bg-emerald-50 rounded-2xl border-4 border-emerald-400 overflow-hidden shadow-inner">
+      <canvas id="gameCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+      <!-- Start / Win Overlay Screen -->
+      <div id="overlay-screen" class="absolute inset-0 bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-white z-20 transition-all duration-300">
+        <div class="animate-float mb-2 text-6xl">👦🏻🌸</div>
+        <h2 id="overlay-title" class="font-fredoka text-3xl sm:text-5xl text-amber-300 mb-2 drop-shadow-lg">
+          PETUALANGAN NUSA!
+        </h2>
+        <p id="overlay-desc" class="text-sm sm:text-base text-slate-200 mb-6 max-w-md">
+          Gerakkan Nusa mengelilingi Taman Labirin, temukan pos bintang, dan jawab 10 Soal PAI dengan benar untuk keluar taman!
+        </p>
+        <button id="start-btn" onclick="startGame()" class="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-white font-fredoka text-xl sm:text-2xl px-8 py-3.5 rounded-full btn-primary-3d transition-transform transform hover:scale-105 active:scale-95">
+          MULAI PETUALANGAN 🚀
+        </button>
+      </div>
+
+      <!-- Quiz Modal Popup -->
+      <div id="quiz-modal" class="hidden absolute inset-0 bg-slate-900/85 backdrop-blur-sm flex flex-col items-center justify-center p-4 sm:p-6 z-30 transition-all">
+        <div class="bg-white rounded-3xl border-4 border-amber-400 p-4 sm:p-6 max-w-lg w-full text-slate-800 shadow-2xl relative overflow-hidden">
+          
+          <div class="flex justify-between items-center mb-3">
+            <span id="quiz-number" class="bg-amber-100 text-amber-800 font-fredoka text-xs sm:text-sm px-3 py-1 rounded-full border border-amber-300">
+              Pos Bintang #1
+            </span>
+            <span class="text-2xl animate-bounce">🌟</span>
+          </div>
+
+          <p id="quiz-question" class="font-bold text-sm sm:text-lg text-slate-800 mb-4 text-left leading-relaxed">
+            Soal PAI akan muncul di sini...
+          </p>
+
+          <div id="quiz-options" class="grid grid-cols-1 gap-2.5 mb-4 text-left">
+            <!-- Options injected dynamically -->
+          </div>
+
+          <div id="quiz-feedback" class="hidden p-3 rounded-xl font-bold text-xs sm:text-sm text-center mb-3">
+            <!-- Feedback msg -->
+          </div>
+
+          <button id="next-quiz-btn" onclick="continueAfterQuiz()" class="hidden w-full bg-emerald-500 text-white font-fredoka text-lg py-2.5 rounded-xl btn-3d">
+            LANJUTKAN PETUALANGAN ➔
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Directional Control Buttons (Mobile & Touch Friendly) -->
+    <div class="mt-3 flex flex-col items-center gap-1.5 w-full max-w-xs">
+      <div class="text-xs font-bold text-emerald-800">Gunakan Tombol atau Panah Keyboard:</div>
+      <div class="grid grid-cols-3 gap-2 w-36">
+        <div></div>
+        <button onclick="movePlayer('UP')" class="bg-emerald-400 hover:bg-emerald-300 text-white font-fredoka text-xl py-2 rounded-xl btn-3d">⬆️</button>
+        <div></div>
+        <button onclick="movePlayer('LEFT')" class="bg-emerald-400 hover:bg-emerald-300 text-white font-fredoka text-xl py-2 rounded-xl btn-3d">⬅️</button>
+        <button onclick="movePlayer('DOWN')" class="bg-emerald-400 hover:bg-emerald-300 text-white font-fredoka text-xl py-2 rounded-xl btn-3d">⬇️</button>
+        <button onclick="movePlayer('RIGHT')" class="bg-emerald-400 hover:bg-emerald-300 text-white font-fredoka text-xl py-2 rounded-xl btn-3d">➡️</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer Banner Badge -->
+  <footer class="my-3 text-center w-full max-w-xl">
+    <div class="bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 p-1 rounded-2xl shadow-xl transform hover:scale-102 transition-transform">
+      <div class="bg-white/95 px-5 py-2.5 rounded-xl border-2 border-pink-200 flex items-center justify-center gap-2">
+        <span class="text-pink-500 pulse-icon text-lg">💖</span>
+        <p class="font-fredoka text-xs sm:text-base text-slate-800 tracking-wide">
+          Dibuat dengan penuh cinta oleh <span class="text-pink-600 underline decoration-pink-400 decoration-2">bu mila_SDN 01 Karangasem</span>
+        </p>
+        <span class="text-pink-500 pulse-icon text-lg">💖</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // --- Web Audio API Synthesizer ---
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+      init() {
+        if (!this.ctx) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+      }
+      playMove() {
+        if (!this.enabled || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(350, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(500, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+      playCorrect() {
+        if (!this.enabled || !this.ctx) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.08 + 0.2);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + idx * 0.08);
+          osc.stop(this.ctx.currentTime + idx * 0.08 + 0.2);
+        });
+      }
+      playWrong() {
+        if (!this.enabled || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(130, this.ctx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.25);
+      }
+      playWin() {
+        if (!this.enabled || !this.ctx) return;
+        const melody = [440, 554.37, 659.25, 880, 659.25, 880];
+        melody.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime + idx * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.12 + 0.25);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + idx * 0.12);
+          osc.stop(this.ctx.currentTime + idx * 0.12 + 0.25);
+        });
+      }
+    }
+
+    const audio = new SoundEngine();
+
+    function toggleAudio() {
+      audio.enabled = !audio.enabled;
+      document.getElementById('audio-btn').innerText = audio.enabled ? '🔊 Suara: ON' : '🔇 Suara: OFF';
+    }
+
+    // --- 10 PAI Questions Data Set ---
+    const QUESTIONS_DATA = [
+      {
+        q: "1. Istilah dalam ajaran Islam yang berarti berbakti kepada kedua orang tua adalah ....",
+        options: ["a. Jihad fi Sabilillah", "b. Birrul Walidain", "c. Ukhuwah Islamiyah", "d. Silaturahmi"],
+        correct: 1
+      },
+      {
+        q: "2. Perhatikan ayat berikut: \"Dan Tuhanmu telah memerintahkan agar kamu jangan menyembah selain Dia dan hendaklah berbuat baik kepada...\" Lanjutan arti dari potongan Surah Al-Isra' ayat 23 tersebut adalah ....",
+        options: ["a. Tetangga dekat", "b. Ibu dan bapak", "c. Guru-gurumu", "d. Anak-anak yatim"],
+        correct: 1
+      },
+      {
+        q: "3. Contoh tutur kata yang dilarang keras oleh Islam saat berkomunikasi dengan orang tua adalah ....",
+        options: ["a. Mengucapkan kata \"ah\" atau membentak", "b. Mengucapkan salam saat masuk rumah", "c. Memanggil dengan sebutan yang lembut", "d. Mengucapkan terima kasih setelah diberi uang saku"],
+        correct: 0
+      },
+      {
+        q: "4. Apabila ibu meminta tolong kepada kita untuk membelikan garam di warung saat kita sedang menonton televisi, sikap kita yang benar adalah ....",
+        options: ["a. Pura-pura tidak mendengar panggilan ibu", "b. Pura-pura tidur di kamar agar tidak disuruh", "c. Segera berdiri dan melaksanakannya dengan Ikhlas", "d. Marah-marah dan meminta upah uang jajan"],
+        correct: 2
+      },
+      {
+        q: "5. Perilaku berikut yang menunjukkan akhlak terpuji seorang kakak terhadap adiknya di rumah adalah ....",
+        options: ["a. Menyembunyikan mainan adik hingga adik menangis", "b. Membimbing adik saat belajar membaca Al-Qur'an", "c. Menyuruh adik bekerja membersihkan seluruh rumah", "d. Mengambil makanan milik adik tanpa izin"],
+        correct: 1
+      },
+      {
+        q: "6. Menjaga tali silaturahmi dengan paman, bibi, kakek, dan nenek menurut hadits Nabi saw. dapat membawa hikmah yaitu ....",
+        options: ["a. Menjadi terkenal di media sosial", "b. Dipuji oleh banyak tetangga", "c. Melapangkan rezeki dan memperpanjang umur", "d. Mendapatkan hadiah yang banyak"],
+        correct: 2
+      },
+      {
+        q: "7. Doa yang dibaca seorang anak untuk mendoakan kedua orang tuanya adalah ....",
+        options: ["a. Rabbana aatina fiddunya hasanah", "b. Rabbighfir lii wa liwaalidayya warhamhumaa kamaa rabbayaanii shaghiiraa", "c. Subhanalladzi sakhkhara lana hadza", "d. Bismillahi tawakkaltu 'alallah"],
+        correct: 1
+      },
+      {
+        q: "8. Tindakan yang mencerminkan upaya menjaga nama baik keluarga di lingkungan sekolah adalah ....",
+        options: ["a. Berkelahi dengan teman saat jam istirahat", "b. Berlatih giat untuk meraih prestasi dan bersikap jujur", "c. Menceritakan masalah percekcokan orang tua kepada teman", "d. Membolos sekolah bersama teman-teman"],
+        correct: 1
+      },
+      {
+        q: "9. Jika kakak dan adik berebut meremote televisi, cara penyelesaian yang sesuai dengan akhlak Islam adalah ....",
+        options: ["a. Saling berteriak dan memukuli", "b. Mengalah, bermusyawarah, dan membagi waktu menonton", "c. Merusakkan remote televisi agar tidak ada yang bisa menonton", "d. Melaporkan kepada tetangga sebelah"],
+        correct: 1
+      },
+      {
+        q: "10. Kunci utama untuk mendapatkan ridha Allah Swt. dalam kehidupan seorang anak adalah bergantung pada ....",
+        options: ["a. Kekayaan harta benda yang dimiliki", "b. Kepintaran dalam semua mata pelajaran", "c. Ridha dari kedua orang tua", "d. Jumlah pengikut di media sosial"],
+        correct: 2
+      }
+    ];
+
+    // 13x13 Labyrinth Grid Map (0: Path, 1: Wall/Hedge)
+    const MAZE_GRID = [
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+      [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1],
+      [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+      [1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1],
+      [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+      [1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1],
+      [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+      [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1],
+      [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1], // 2 = Finish Exit
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ];
+
+    // Locations for the 10 Stars in the maze grid (x, y)
+    const STAR_LOCATIONS = [
+      { x: 1, y: 3 },
+      { x: 3, y: 1 },
+      { x: 5, y: 3 },
+      { x: 8, y: 1 },
+      { x: 11, y: 3 },
+      { x: 8, y: 5 },
+      { x: 4, y: 7 },
+      { x: 1, y: 9 },
+      { x: 5, y: 9 },
+      { x: 9, y: 9 }
+    ];
+
+    // Game Variables
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let player = { x: 1, y: 1 };
+    let starsState = []; // array tracking stars collected
+    let activeStarIndex = null;
+    let score = 0;
+    let starsCollectedCount = 0;
+    let gameState = 'START'; // START, PLAYING, QUIZ, WIN
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      render();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function startGame() {
+      audio.init();
+      player = { x: 1, y: 1 };
+      score = 0;
+      starsCollectedCount = 0;
+      starsState = STAR_LOCATIONS.map((loc, idx) => ({ ...loc, collected: false, questionIdx: idx }));
+      
+      document.getElementById('score-text').innerText = score;
+      document.getElementById('stars-text').innerText = `0 / 10`;
+      document.getElementById('progress-bar').style.width = '0%';
+      document.getElementById('overlay-screen').classList.add('hidden');
+      document.getElementById('quiz-modal').classList.add('hidden');
+      
+      gameState = 'PLAYING';
+      resizeCanvas();
+    }
+
+    function movePlayer(dir) {
+      if (gameState !== 'PLAYING') return;
+
+      let dx = 0, dy = 0;
+      if (dir === 'UP') dy = -1;
+      if (dir === 'DOWN') dy = 1;
+      if (dir === 'LEFT') dx = -1;
+      if (dir === 'RIGHT') dx = 1;
+
+      const targetX = player.x + dx;
+      const targetY = player.y + dy;
+
+      // Check wall collision
+      if (MAZE_GRID[targetY] && MAZE_GRID[targetY][targetX] !== 1) {
+        player.x = targetX;
+        player.y = targetY;
+        audio.playMove();
+
+        // Check if player landed on a star
+        checkStarTrigger();
+
+        // Check if player reached exit
+        if (MAZE_GRID[player.y][player.x] === 2) {
+          if (starsCollectedCount >= 10) {
+            triggerWin();
+          } else {
+            // Not all stars collected
+            showPromptMsg("Kumpulkan semua 10 Bintang PAI dulu sebelum keluar taman! ⭐");
+          }
+        }
+
+        render();
+      }
+    }
+
+    // Keyboard Arrow Controls
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp' || e.key === 'w') movePlayer('UP');
+      if (e.key === 'ArrowDown' || e.key === 's') movePlayer('DOWN');
+      if (e.key === 'ArrowLeft' || e.key === 'a') movePlayer('LEFT');
+      if (e.key === 'ArrowRight' || e.key === 'd') movePlayer('RIGHT');
+    });
+
+    function checkStarTrigger() {
+      const star = starsState.find(s => !s.collected && s.x === player.x && s.y === player.y);
+      if (star) {
+        activeStarIndex = star.questionIdx;
+        openQuizModal(activeStarIndex);
+      }
+    }
+
+    function openQuizModal(qIndex) {
+      gameState = 'QUIZ';
+      const qData = QUESTIONS_DATA[qIndex];
+
+      document.getElementById('quiz-number').innerText = `Pos Bintang #${qIndex + 1}`;
+      document.getElementById('quiz-question').innerText = qData.q;
+      
+      const optionsContainer = document.getElementById('quiz-options');
+      optionsContainer.innerHTML = '';
+
+      qData.options.forEach((optText, optIdx) => {
+        const btn = document.createElement('button');
+        btn.className = 'w-full text-left p-3 rounded-xl border-2 border-amber-200 bg-amber-50/60 hover:bg-amber-100 font-bold text-xs sm:text-sm text-slate-800 transition-all btn-3d';
+        btn.innerText = optText;
+        btn.onclick = () => handleAnswer(optIdx, btn);
+        optionsContainer.appendChild(btn);
+      });
+
+      document.getElementById('quiz-feedback').classList.add('hidden');
+      document.getElementById('next-quiz-btn').classList.add('hidden');
+      document.getElementById('quiz-modal').classList.remove('hidden');
+    }
+
+    function handleAnswer(selectedIndex, buttonEl) {
+      const qData = QUESTIONS_DATA[activeStarIndex];
+      const feedbackEl = document.getElementById('quiz-feedback');
+      const nextBtn = document.getElementById('next-quiz-btn');
+      const allOptionBtns = document.getElementById('quiz-options').querySelectorAll('button');
+
+      allOptionBtns.forEach(b => b.disabled = true);
+
+      if (selectedIndex === qData.correct) {
+        // Correct Answer
+        audio.playCorrect();
+        buttonEl.classList.remove('bg-amber-50/60', 'border-amber-200');
+        buttonEl.classList.add('bg-emerald-500', 'text-white', 'border-emerald-600');
+        
+        feedbackEl.innerText = "🌟 MASYA ALLAH, BENAR! Jawabanmu Tepat Sekali! 🎉";
+        feedbackEl.className = 'p-3 rounded-xl font-bold text-xs sm:text-sm text-center mb-3 bg-emerald-100 text-emerald-800 border border-emerald-300';
+        
+        // Confetti Burst
+        confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
+
+        // Mark star collected
+        starsState[activeStarIndex].collected = true;
+        score += 10;
+        starsCollectedCount++;
+
+        document.getElementById('score-text').innerText = score;
+        document.getElementById('stars-text').innerText = `${starsCollectedCount} / 10`;
+        document.getElementById('progress-bar').style.width = `${(starsCollectedCount / 10) * 100}%`;
+
+      } else {
+        // Wrong Answer
+        audio.playWrong();
+        buttonEl.classList.remove('bg-amber-50/60', 'border-amber-200');
+        buttonEl.classList.add('bg-rose-500', 'text-white', 'border-rose-600');
+
+        // Highlight correct option
+        allOptionBtns[qData.correct].classList.add('bg-emerald-200', 'border-emerald-400');
+
+        feedbackEl.innerText = `💡 JAWABAN KURANG TEPAT! Jawaban yang benar adalah: ${qData.options[qData.correct]}`;
+        feedbackEl.className = 'p-3 rounded-xl font-bold text-xs sm:text-sm text-center mb-3 bg-rose-100 text-rose-800 border border-rose-300';
+
+        // Still allow to proceed
+        starsState[activeStarIndex].collected = true;
+        starsCollectedCount++;
+        document.getElementById('stars-text').innerText = `${starsCollectedCount} / 10`;
+        document.getElementById('progress-bar').style.width = `${(starsCollectedCount / 10) * 100}%`;
+      }
+
+      feedbackEl.classList.remove('hidden');
+      nextBtn.classList.remove('hidden');
+    }
+
+    function continueAfterQuiz() {
+      document.getElementById('quiz-modal').classList.add('hidden');
+      gameState = 'PLAYING';
+      render();
+
+      if (starsCollectedCount >= 10 && player.x === 11 && player.y === 11) {
+        triggerWin();
+      }
+    }
+
+    function triggerWin() {
+      gameState = 'WIN';
+      audio.playWin();
+
+      // Full Confetti Explosion
+      confetti({ particleCount: 120, spread: 90, origin: { y: 0.5 } });
+
+      const overlay = document.getElementById('overlay-screen');
+      document.getElementById('overlay-title').innerText = '🌟 ALHAMDULILLAH WIN! 🌟';
+      document.getElementById('overlay-desc').innerText = `Hebat sekali! Nusa berhasil keluar dari Taman Labirin dengan Skor Akhir: ${score}! Bu Mila SDN 01 Karangasem sangat bangga padamu! ❤️`;
+      document.getElementById('start-btn').innerText = 'MAIN LAGI 🔄';
+      
+      overlay.classList.remove('hidden');
+    }
+
+    function showPromptMsg(msg) {
+      const feedback = document.createElement('div');
+      feedback.className = 'absolute top-4 left-1/2 -translate-x-1/2 bg-amber-400 text-amber-950 font-bold px-4 py-2 rounded-full shadow-lg border-2 border-white text-xs sm:text-sm z-40 animate-bounce';
+      feedback.innerText = msg;
+      canvas.parentElement.appendChild(feedback);
+      setTimeout(() => feedback.remove(), 2500);
+    }
+
+    // --- Canvas Rendering Loop ---
+    function render() {
+      const gridCols = 13;
+      const gridRows = 13;
+      const cellSize = canvas.width / gridCols;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 1. Draw Maze Tiles (Hedges & Paths)
+      for (let r = 0; r < gridRows; r++) {
+        for (let c = 0; c < gridCols; c++) {
+          const x = c * cellSize;
+          const y = r * cellSize;
+
+          if (MAZE_GRID[r][c] === 1) {
+            // Hedge Wall
+            ctx.fillStyle = '#16a34a';
+            ctx.fillRect(x, y, cellSize, cellSize);
+            // Inner hedge accent
+            ctx.fillStyle = '#15803d';
+            ctx.fillRect(x + 2, y + 2, cellSize - 4, cellSize - 4);
+          } else if (MAZE_GRID[r][c] === 2) {
+            // Finish Exit Gate
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(x, y, cellSize, cellSize);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `${cellSize * 0.5}px Fredoka`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🚪', x + cellSize / 2, y + cellSize / 2);
+          } else {
+            // Grass Walkway
+            ctx.fillStyle = '#dcfce7';
+            ctx.fillRect(x, y, cellSize, cellSize);
+            ctx.strokeStyle = '#bbf7d0';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, cellSize, cellSize);
+          }
+        }
+      }
+
+      // 2. Draw Stars
+      starsState.forEach((star) => {
+        if (!star.collected) {
+          const sx = star.x * cellSize + cellSize / 2;
+          const sy = star.y * cellSize + cellSize / 2;
+
+          ctx.fillStyle = '#f59e0b';
+          ctx.font = `${cellSize * 0.65}px Fredoka`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('⭐', sx, sy);
+        }
+      });
+
+      // 3. Draw Character Nusa (Boy Emoji or Icon)
+      const px = player.x * cellSize + cellSize / 2;
+      const py = player.y * cellSize + cellSize / 2;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(px, py, cellSize * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#059669';
+      ctx.stroke();
+
+      ctx.font = `${cellSize * 0.65}px Fredoka`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('👦🏻', px, py + 1);
+    }
+
+    // Initial load
+    window.onload = () => {
+      resizeCanvas();
+    };
+  </script>
+</body>
+</html>
