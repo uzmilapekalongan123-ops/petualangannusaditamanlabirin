@@ -1,0 +1,35 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Periksa game
+        run: node tools/check.mjs
+
+      - name: Siapkan berkas situs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages
+          git checkout -B gh-pages origin/gh-pages
+          git checkout -f main -- petualangan_nusa_di_taman_labirin.html
+          cp petualangan_nusa_di_taman_labirin.html index.html
+          touch .nojekyll
+          git add -A index.html .nojekyll
+          git commit -m "chore: terbitkan game dari ${GITHUB_SHA}" || echo "tidak ada perubahan"
+          git push origin gh-pages
